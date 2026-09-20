@@ -1452,3 +1452,138 @@ select:focus-visible {
     border-radius: 28px;
   }
 }
+
+/* Trip covers and the dedicated weather view */
+.trip-cover,
+.detail-cover,
+.weather-cover,
+.trip-list-thumb,
+.cover-preview {
+  background-color: #355744;
+  background-position: center;
+  background-size: cover;
+}
+.trip-list-thumb {
+  display: block;
+  flex: none;
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+}
+.trip-list-card .trip-list-main strong,
+.trip-list-card .trip-list-main small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-cover,
+.weather-cover {
+  display: flex;
+  color: #fff;
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 9px 18px rgba(28, 56, 31, .12);
+}
+.detail-cover {
+  min-height: 147px;
+  margin: 17px 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+.detail-cover small,
+.detail-cover strong,
+.weather-cover span,
+.weather-cover strong {
+  display: block;
+}
+.detail-cover small {
+  font-size: 11px;
+  color: #e1ede3;
+}
+.detail-cover strong {
+  font-size: 20px;
+  line-height: 1.25;
+  margin-top: 6px;
+}
+.detail-cover button {
+  flex: none;
+  border: 1px solid rgba(255,255,255,.65);
+  border-radius: 100px;
+  color: #fff;
+  background: rgba(9,30,18,.38);
+  padding: 8px 10px;
+  font-size: 11px;
+}
+.weather-cover {
+  min-height: 183px;
+  margin: 18px 0;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.weather-cover span {
+  font-size: 10px;
+  letter-spacing: .15em;
+}
+.weather-cover strong {
+  font-size: 25px;
+  line-height: 1.2;
+}
+.weather-page .weather-card {
+  margin-bottom: 14px;
+}
+.weather-page .weather-extra {
+  display: block;
+}
+.weather-disclaimer {
+  color: #728275;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 15px 3px 23px;
+}
+.cover-picker {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  margin: 18px 0 3px;
+}
+.cover-preview {
+  width: 93px;
+  height: 74px;
+  flex: none;
+  border-radius: 12px;
+}
+.cover-picker-info {
+  min-width: 0;
+}
+.cover-picker-info strong,
+.cover-picker-info small {
+  display: block;
+}
+.cover-picker-info strong {
+  font-size: 13px;
+}
+.cover-picker-info small,
+.cover-hint {
+  color: #78887b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.cover-picker-info div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 5px;
+}
+.cover-picker-info button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #285f3d;
+  font-size: 11px;
+  font-weight: 750;
+}
+.cover-hint {
+  margin: 5px 0 15px;
+}

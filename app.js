@@ -185,7 +185,6 @@ const ui = {
   filter: "all",
   modal: null,
   weather: {},
-  weatherExpanded: false,
   method: "template",
   createDraft: null,
   replaceTripId: null,
@@ -194,12 +193,75 @@ let storageWarned = false;
 function save() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
   } catch {
     if (!storageWarned) {
       storageWarned = true;
       alert("当前浏览器无法保存数据，请检查无痕模式或浏览器存储设置。");
     }
+    return false;
   }
+}
+const COVER_ASSETS = {
+  mountain: "./yubeng-reference.jpg",
+  coast: "./cover-coast.jpg",
+  city: "./cover-city.jpg",
+  journey: "./cover-journey.jpg",
+};
+function autoCover(name, destination) {
+  const text = `${name} ${destination}`;
+  if (/海|岛|沙滩|潜水|冲浪|三亚|厦门|青岛|大连|巴厘|普吉|冲绳/.test(text)) return "coast";
+  if (/山|徒步|登山|露营|雨崩|雪|林|峡谷|草原|高原/.test(text)) return "mountain";
+  if (/出差|商务|城市|北京|上海|广州|深圳|杭州|成都|东京|京都|巴黎|首尔/.test(text)) return "city";
+  return "journey";
+}
+function coverSource(trip) {
+  if (/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(trip.coverImage || "")) return trip.coverImage;
+  return COVER_ASSETS[trip.coverPreset] || COVER_ASSETS[autoCover(trip.name, trip.destination)];
+}
+function coverStyle(trip) {
+  return `style="background-image:linear-gradient(180deg,rgba(6,20,12,.12) 2%,rgba(5,17,9,.12) 39%,rgba(5,22,12,.83) 100%),url(${coverSource(trip)})"`;
+}
+function refreshCoverPreview(trip) {
+  const style = coverStyle(trip).slice(7, -1);
+  for (const selector of [".cover-preview", ".detail-cover", ".weather-cover"]) {
+    document.querySelector(selector)?.setAttribute("style", style);
+  }
+  const label = document.querySelector(".cover-picker-info small");
+  if (label) label.textContent = trip.coverImage ? "已上传自选照片" : "已自动匹配场景照片";
+}
+function compressCover(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) return reject(new Error("请选择图片文件。"));
+    if (file.size > 12 * 1024 * 1024) return reject(new Error("图片不能超过 12 MB。"));
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      let width = image.naturalWidth, height = image.naturalHeight;
+      if (!width || !height) return reject(new Error("无法读取这张图片。"));
+      const scale = Math.min(1, 1200 / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) return reject(new Error("浏览器无法处理图片。"));
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+      let result = canvas.toDataURL("image/jpeg", 0.76);
+      if (result.length > 650000) result = canvas.toDataURL("image/jpeg", 0.55);
+      if (result.length > 650000) return reject(new Error("图片压缩后仍过大，请换一张照片。"));
+      resolve(result);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("无法读取这张图片，请试试 JPG、PNG 或 WebP。"));
+    };
+    image.src = url;
+  });
 }
 function getTrip(id = ui.tripId) {
   return state.trips.find((x) => x.id === id);
@@ -286,14 +348,14 @@ function navigate(view, options = {}) {
   if (options.templateId) ui.templateId = options.templateId;
   render();
   window.scrollTo(0, 0);
-  if (view === "detail") ensureWeather(getTrip());
+  if (view === "detail" || view === "weather") ensureWeather(getTrip());
   if (view === "home") ensureWeather(nextTrip());
 }
 function brand() {
   return `<header class="topbar"><button class="brand" data-action="go-home" aria-label="回到行程首页"><img src="./favicon.svg" alt=""/><span>行前准备</span></button><button class="round-menu" data-action="go-templates" aria-label="模板管理">···</button></header>`;
 }
 function nav() {
-  const home = ["home", "create", "detail"].includes(ui.view);
+  const home = ["home", "create", "detail", "weather"].includes(ui.view);
   return `<nav class="bottom-nav" aria-label="主导航"><button class="${home ? "active" : ""}" data-action="go-home"><span class="nav-icon">▤</span>行程</button><button class="${!home ? "active" : ""}" data-action="go-templates"><span class="nav-icon">▦</span>模板</button></nav>`;
 }
 function render() {
@@ -302,6 +364,7 @@ function render() {
   if (ui.view === "home") page = renderHome();
   else if (ui.view === "create") page = renderCreate();
   else if (ui.view === "detail") page = renderDetail();
+  else if (ui.view === "weather") page = renderWeatherPage();
   else if (ui.view === "templates") page = renderTemplates();
   else if (ui.view === "template-editor") page = renderTemplateEditor();
   app.innerHTML = (["home", "templates"].includes(ui.view) ? brand() : "") + page + nav() + renderModal();
@@ -311,28 +374,25 @@ function nextTrip() {
   const sorted = [...state.trips].sort((a, b) => a.startDate.localeCompare(b.startDate));
   return sorted.find((trip) => (trip.endDate || trip.startDate) >= today) || sorted.at(-1);
 }
-function heroClass(trip) {
-  return trip && /雨崩|德钦/.test(`${trip.name} ${trip.destination}`) ? "yubeng" : "plain";
-}
 function renderHome() {
   const trip = nextTrip();
   const all = [...state.trips].sort((a, b) => a.startDate.localeCompare(b.startDate));
-  return `<main class="page home"><div class="welcome"><div class="eyebrow">${trip ? `NEXT UP · ${dateLabel(trip.startDate)}` : "READY BEFORE YOU GO"}</div><h1>旅程在前，<br>行李有数。</h1><p>下一次出发，我们一起准备好。</p></div>${trip ? `<div class="hero-card ${heroClass(trip)}"><div class="hero-top"><span>UPCOMING TRIP</span><span>${escapeHTML(dateRange(trip))}</span></div><div class="hero-bottom"><small>${escapeHTML(trip.destination)}</small><strong>${escapeHTML(trip.name)}</strong><div class="hero-footer"><span><b>${counts(trip).packed} / ${counts(trip).total}</b>　已装好</span><button class="hero-meter" data-action="open-trip" data-id="${trip.id}">${trip.stage === "packing" ? "继续核对" : "确认要带"}　↗</button></div></div></div><div class="section-head"><h2>目的地天气</h2><button class="text-btn" data-action="open-trip" data-id="${trip.id}">查看详情 ↗</button></div>${renderHomeWeather(trip)}` : `<div class="hero-card yubeng empty-hero"><div class="hero-top"><span>YUNNAN · YUBENG</span><span>行程灵感</span></div><div class="hero-bottom"><small>示例灵感 · 云南雨崩徒步</small><strong>从下一趟旅程，<br>开始准备。</strong><div class="hero-footer"><button class="hero-meter" data-action="new-trip">创建第一趟行程　↗</button></div></div></div>`}<div class="section-head"><h2>${trip ? "我的行程" : "常用起点"}</h2><button class="text-btn" data-action="go-templates">全部模板 ↗</button></div>${trip ? all.map(renderTripCard).join("") : `<div class="template-mini"><button data-action="use-template" data-id="base-general"><strong>通用旅行</strong><small>从常备物品开始 ↗</small></button><button data-action="new-hiking-trip"><strong>徒步出行</strong><small>补充户外装备 ↗</small></button></div>`}<button class="btn primary wide create-cta" data-action="new-trip">＋ 新建行程</button></main>`;
+  return `<main class="page home"><div class="welcome"><div class="eyebrow">${trip ? `NEXT UP · ${dateLabel(trip.startDate)}` : "READY BEFORE YOU GO"}</div><h1>旅程在前，<br>行李有数。</h1><p>下一次出发，我们一起准备好。</p></div>${trip ? `<div class="hero-card trip-cover" ${coverStyle(trip)}><div class="hero-top"><span>UPCOMING TRIP</span><span>${escapeHTML(dateRange(trip))}</span></div><div class="hero-bottom"><small>${escapeHTML(trip.destination)}</small><strong>${escapeHTML(trip.name)}</strong><div class="hero-footer"><span><b>${counts(trip).packed} / ${counts(trip).total}</b>　已装好</span><button class="hero-meter" data-action="open-trip" data-id="${trip.id}">${trip.stage === "packing" ? "继续核对" : "确认要带"}　↗</button></div></div></div><div class="section-head"><h2>目的地天气</h2><button class="text-btn" data-action="open-weather" data-id="${trip.id}">查看详情 ↗</button></div>${renderHomeWeather(trip)}` : `<div class="hero-card yubeng empty-hero"><div class="hero-top"><span>YUNNAN · YUBENG</span><span>行程灵感</span></div><div class="hero-bottom"><small>示例灵感 · 云南雨崩徒步</small><strong>从下一趟旅程，<br>开始准备。</strong><div class="hero-footer"><button class="hero-meter" data-action="new-trip">创建第一趟行程　↗</button></div></div></div>`}<div class="section-head"><h2>${trip ? "我的行程" : "常用起点"}</h2><button class="text-btn" data-action="go-templates">全部模板 ↗</button></div>${trip ? all.map(renderTripCard).join("") : `<div class="template-mini"><button data-action="use-template" data-id="base-general"><strong>通用旅行</strong><small>从常备物品开始 ↗</small></button><button data-action="new-hiking-trip"><strong>徒步出行</strong><small>补充户外装备 ↗</small></button></div>`}<button class="btn primary wide create-cta" data-action="new-trip">＋ 新建行程</button></main>`;
 }
 function renderHomeWeather(trip) {
   const weather = ui.weather[weatherKey(trip)];
-  if (!weather || weather.status === "loading") return `<button class="home-weather" data-action="open-trip" data-id="${trip.id}"><span>目的地天气</span><strong>正在获取预报…</strong></button>`;
-  if (weather.status === "error") return `<button class="home-weather" data-action="open-trip" data-id="${trip.id}"><span>目的地天气</span><strong>天气暂时不可用</strong><small>${escapeHTML(weather.message)} · 查看详情 →</small></button>`;
+  if (!weather || weather.status === "loading") return `<button class="home-weather" data-action="open-weather" data-id="${trip.id}"><span>目的地天气</span><strong>正在获取预报…</strong></button>`;
+  if (weather.status === "error") return `<button class="home-weather" data-action="open-weather" data-id="${trip.id}"><span>目的地天气</span><strong>天气暂时不可用</strong><small>${escapeHTML(weather.message)} · 查看详情 →</small></button>`;
   const days = weather.days || [];
-  if (!days.length) return `<button class="home-weather" data-action="open-trip" data-id="${trip.id}"><span>目的地天气 · ${escapeHTML(weather.place)}</span><strong>出行日期暂无预报</strong><small>预报覆盖 ${escapeHTML(weather.coverageStart)}—${escapeHTML(weather.coverageEnd)} · 查看详情 →</small></button>`;
+  if (!days.length) return `<button class="home-weather" data-action="open-weather" data-id="${trip.id}"><span>目的地天气 · ${escapeHTML(weather.place)}</span><strong>出行日期暂无预报</strong><small>预报覆盖 ${escapeHTML(weather.coverageStart)}—${escapeHTML(weather.coverageEnd)} · 查看详情 →</small></button>`;
   const low = Math.round(Math.min(...days.map((d) => d.min).filter(Number.isFinite))), high = Math.round(Math.max(...days.map((d) => d.max).filter(Number.isFinite)));
   const rain = Math.max(...days.map((d) => d.rain).filter(Number.isFinite));
-  return `<button class="home-weather" data-action="open-trip" data-id="${trip.id}"><span>目的地天气 · ${escapeHTML(weather.place)} <em>查看详情 →</em></span><strong>${Number.isFinite(low) && Number.isFinite(high) ? `${low}—${high}°` : "预报已更新"}</strong><small>${Number.isFinite(rain) ? `降水概率最高 ${rain}%` : "请查看逐日预报"}${weather.suggestions?.length ? ` · 建议备 ${escapeHTML(weather.suggestions.map((x) => x.name).join("、"))}` : ""}</small></button>`;
+  return `<button class="home-weather" data-action="open-weather" data-id="${trip.id}"><span>目的地天气 · ${escapeHTML(weather.place)} <em>查看详情 →</em></span><strong>${Number.isFinite(low) && Number.isFinite(high) ? `${low}—${high}°` : "预报已更新"}</strong><small>${Number.isFinite(rain) ? `降水概率最高 ${rain}%` : "请查看逐日预报"}${weather.suggestions?.length ? ` · 建议备 ${escapeHTML(weather.suggestions.map((x) => x.name).join("、"))}` : ""}</small></button>`;
 }
 function renderTripCard(trip) {
   const c = counts(trip);
   const [label] = tripStatus(trip);
-  return `<button class="trip-list-card" data-action="open-trip" data-id="${trip.id}"><span class="trip-list-date">${dateLabel(trip.startDate)}</span><span class="trip-list-main"><strong>${escapeHTML(trip.name)}</strong><small>${escapeHTML(trip.destination)} · ${dateRange(trip)}</small></span><span class="trip-list-state">${label}<br>${c.packed}/${c.total}</span></button>`;
+  return `<button class="trip-list-card" data-action="open-trip" data-id="${trip.id}"><span class="trip-list-thumb" ${coverStyle(trip)} aria-hidden="true"></span><span class="trip-list-main"><strong>${escapeHTML(trip.name)}</strong><small>${escapeHTML(trip.destination)} · ${dateRange(trip)}</small></span><span class="trip-list-state">${label}<br>${c.packed}/${c.total}</span></button>`;
 }
 function currentDraft() {
   return ui.createDraft || { name: "", destination: "", startDate: "", endDate: "", type: "travel", templateId: ui.prefillTemplateId || "base-general", scenes: [] };
@@ -352,7 +412,12 @@ function renderDetail() {
   const trip = getTrip();
   if (!trip) { ui.view = "home"; return renderHome(); }
   const c = counts(trip);
-  return `<main class="page detail"><div class="back-row"><button data-action="go-home">←</button><span>${escapeHTML(trip.name)}</span><button data-action="edit-trip">编辑行程</button></div><div class="eyebrow">STEP ${ui.tab === "confirm" ? "01" : "02"} / 02</div><h1 class="page-title">${ui.tab === "confirm" ? "先决定，<br>这次要带什么。" : "一件件装好，<br>就能安心出发。"}</h1><p class="intro">${ui.tab === "confirm" ? "这里的勾选表示要带，不代表已装好。" : "装入行李时再打勾，这一步才计算装包进度。"}</p><div class="steps" role="tablist" aria-label="清单步骤"><button class="step ${ui.tab === "confirm" ? "active" : ""}" data-action="show-confirm" role="tab" aria-selected="${ui.tab === "confirm"}"><b>01</b>确认要带</button><span></span><button class="step ${ui.tab === "pack" ? "active" : ""}" data-action="show-pack" role="tab" aria-selected="${ui.tab === "pack"}" ${trip.stage !== "packing" ? "disabled" : ""}><b>02</b>核对装包</button></div>${ui.tab === "confirm" ? renderWeather(trip) + renderConfirm(trip, c) : renderPacking(trip, c)}<button class="delete-link" data-action="delete-trip">删除这趟行程</button></main>`;
+  return `<main class="page detail"><div class="back-row"><button data-action="go-home">←</button><span>${escapeHTML(trip.name)}</span><button data-action="edit-trip">编辑行程</button></div><div class="eyebrow">STEP ${ui.tab === "confirm" ? "01" : "02"} / 02</div><h1 class="page-title">${ui.tab === "confirm" ? "先决定，<br>这次要带什么。" : "一件件装好，<br>就能安心出发。"}</h1><p class="intro">${ui.tab === "confirm" ? "这里的勾选表示要带，不代表已装好。" : "装入行李时再打勾，这一步才计算装包进度。"}</p><div class="detail-cover" ${coverStyle(trip)}><div><small>${escapeHTML(trip.destination)} · ${escapeHTML(dateRange(trip))}</small><strong>${escapeHTML(trip.name)}</strong></div><button data-action="edit-trip">更换封面 ↗</button></div><div class="steps" role="tablist" aria-label="清单步骤"><button class="step ${ui.tab === "confirm" ? "active" : ""}" data-action="show-confirm" role="tab" aria-selected="${ui.tab === "confirm"}"><b>01</b>确认要带</button><span></span><button class="step ${ui.tab === "pack" ? "active" : ""}" data-action="show-pack" role="tab" aria-selected="${ui.tab === "pack"}" ${trip.stage !== "packing" ? "disabled" : ""}><b>02</b>核对装包</button></div>${ui.tab === "confirm" ? renderWeather(trip) + renderConfirm(trip, c) : renderPacking(trip, c)}<button class="delete-link" data-action="delete-trip">删除这趟行程</button></main>`;
+}
+function renderWeatherPage() {
+  const trip = getTrip();
+  if (!trip) { ui.view = "home"; return renderHome(); }
+  return `<main class="page weather-page"><div class="back-row"><button data-action="go-home">←</button><span>目的地天气</span><button data-action="open-trip" data-id="${trip.id}">查看行李清单</button></div><div class="eyebrow">WEATHER FOR YOUR TRIP</div><h1 class="page-title">出发前，先看天气。</h1><p class="intro">${escapeHTML(trip.destination)} · ${escapeHTML(dateRange(trip))}</p><div class="weather-cover" ${coverStyle(trip)}><span>TRIP FORECAST</span><strong>${escapeHTML(trip.name)}</strong></div>${renderWeather(trip, true)}<p class="weather-disclaimer">天气会变化，出发前请再次确认当地预报。</p><button class="btn primary wide" data-action="open-trip" data-id="${trip.id}">返回行李清单 →</button></main>`;
 }
 function renderConfirm(trip, c) {
   return `<div class="list-heading"><span><strong>要带 ${c.total} 件</strong><small>${trip.items.length} 件候选</small></span><button data-action="add-trip-item">＋ 添加物品</button></div>${renderCategories(trip.items, "confirm")}${!trip.items.length ? '<div class="empty-list"><div class="empty-plus">＋</div><strong>还没有物品</strong><p>先写下第一件要带的东西，<br>也可以从天气建议中添加。</p></div>' : ""}<button class="text-btn replace-link" data-action="replace-items">更换清单起点</button><button class="btn primary wide detail-submit" data-action="confirm-list" ${c.total ? "" : "disabled"}>${trip.stage === "packing" ? `保存 ${c.total} 件并返回装包 →` : `确认 ${c.total} 件，开始装包 →`}</button>`;
@@ -389,7 +454,7 @@ function renderTemplateEditor() {
   return `<main class="page"><div class="back-row"><button data-action="go-templates">← 模板管理</button></div><div class="eyebrow">MY TEMPLATE</div><h1 class="page-title">编辑模板</h1><form id="rename-template-form"><div class="field"><label for="template-title">模板名称</label><input id="template-title" name="name" maxlength="30" value="${escapeHTML(t.name)}" required /></div><button class="btn secondary small" type="submit">保存名称</button></form><div class="toolbar"><h2>模板物品 · ${t.items.length}</h2><button class="btn primary small" data-action="add-template-item">＋ 添加物品</button></div>${renderCategories(t.items, "template")}${t.items.length ? "" : '<p class="notice">模板还没有物品。添加后即可在新行程中使用。</p>'}</main>`;
 }
 
-function renderWeather(trip) {
+function renderWeather(trip, standalone = false) {
   const data = ui.weather[weatherKey(trip)];
   if (!data || data.status === "loading") return `<section class="weather-card"><div class="weather-title">目的地天气</div><p>正在查询这趟行程的预报…</p></section>`;
   if (data.status === "error") return `<section class="weather-card"><div class="weather-title">目的地天气 <button data-action="retry-weather">重试 →</button></div><p class="weather-error" role="status">${escapeHTML(data.message)} 清单仍可正常使用。</p></section>`;
@@ -398,7 +463,7 @@ function renderWeather(trip) {
   const high = days.length ? Math.round(Math.max(...days.map((d) => d.max).filter(Number.isFinite))) : null;
   const suggestions = (data.suggestions || []).filter((s) => !trip.items.some((x) => x.selected && uniqueKey(x) === uniqueKey(s)));
   const span = `${escapeHTML(data.coverageStart || "未知")}—${escapeHTML(data.coverageEnd || "未知")}`;
-  return `<section class="weather-card"><div class="weather-title">目的地天气 <button data-action="toggle-weather">${ui.weatherExpanded ? "收起" : "查看详情"} →</button></div><div class="weather-main"><strong>${days.length && Number.isFinite(low) && Number.isFinite(high) ? `${low}—${high}°` : "出行日期暂无预报"}</strong><small>${days.length ? `${days.length} 天有预报${data.partial ? " · 部分日期未覆盖" : ""}` : "临近出发再查看"}</small></div><p class="weather-meta">预报地点：${escapeHTML(data.place)}<br>覆盖日期：${span}<br>更新：${escapeHTML(new Date(data.updated).toLocaleString("zh-CN", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }))}（本次获取） · 来源：<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a></p>${ui.weatherExpanded ? `<div class="weather-extra">${days.length ? `<div class="weather-days">${days.map((d) => `<div><span>${dateLabel(d.date)}</span><span>${weatherIcon(d.code)}</span><strong>${Number.isFinite(d.max) ? Math.round(d.max) + "°" : "—"} / ${Number.isFinite(d.min) ? Math.round(d.min) + "°" : "—"}</strong><small>降水 ${Number.isFinite(d.rain) ? Math.round(d.rain) + "%" : "暂无"}</small></div>`).join("")}</div>` : `<p class="weather-note">该行程日期暂无可用天气预报。预报目前覆盖 ${span}。</p>`}${suggestions.length && ui.tab === "confirm" ? `<div class="suggestions">${suggestions.map((s) => `<button data-action="add-weather-item" data-name="${escapeHTML(s.name)}" data-category="${escapeHTML(s.category)}"><strong>＋ ${escapeHTML(s.name)}</strong><small>${escapeHTML(s.reason)}</small></button>`).join("")}</div>` : ""}<button class="text-btn" data-action="retry-weather">刷新预报</button></div>` : ""}</section>`;
+  return `<section class="weather-card"><div class="weather-title">目的地天气 ${standalone ? "" : `<button data-action="open-weather" data-id="${trip.id}">查看详情 →</button>`}</div><div class="weather-main"><strong>${days.length && Number.isFinite(low) && Number.isFinite(high) ? `${low}—${high}°` : "出行日期暂无预报"}</strong><small>${days.length ? `${days.length} 天有预报${data.partial ? " · 部分日期未覆盖" : ""}` : "临近出发再查看"}</small></div><p class="weather-meta">预报地点：${escapeHTML(data.place)}<br>覆盖日期：${span}<br>更新：${escapeHTML(new Date(data.updated).toLocaleString("zh-CN", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }))}（本次获取） · 来源：<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a></p>${standalone ? `<div class="weather-extra">${days.length ? `<div class="weather-days">${days.map((d) => `<div><span>${dateLabel(d.date)}</span><span>${weatherIcon(d.code)}</span><strong>${Number.isFinite(d.max) ? Math.round(d.max) + "°" : "—"} / ${Number.isFinite(d.min) ? Math.round(d.min) + "°" : "—"}</strong><small>降水 ${Number.isFinite(d.rain) ? Math.round(d.rain) + "%" : "暂无"}</small></div>`).join("")}</div>` : `<p class="weather-note">该行程日期暂无可用天气预报。预报目前覆盖 ${span}。</p>`}${suggestions.length && ui.tab === "confirm" ? `<div class="suggestions">${suggestions.map((s) => `<button data-action="add-weather-item" data-name="${escapeHTML(s.name)}" data-category="${escapeHTML(s.category)}"><strong>＋ ${escapeHTML(s.name)}</strong><small>${escapeHTML(s.reason)}</small></button>`).join("")}</div>` : ""}<button class="text-btn" data-action="retry-weather">刷新预报</button></div>` : ""}</section>`;
 }
 function renderModal() {
   if (!ui.modal) return "";
@@ -406,7 +471,7 @@ function renderModal() {
   if (m.type === "edit-trip") {
     const trip = getTrip();
     if (!trip) return "";
-    return `<div class="modal-backdrop" data-action="close-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">编辑行程</h2><button class="modal-close" data-action="close-modal" aria-label="关闭">×</button></div><form id="edit-trip-form"><div class="field"><label for="edit-trip-name">行程名称</label><input id="edit-trip-name" name="name" maxlength="40" value="${escapeHTML(trip.name)}" required></div><div class="field"><label for="edit-trip-destination">目的地</label><input id="edit-trip-destination" name="destination" maxlength="60" value="${escapeHTML(trip.destination)}" required></div><div class="field-grid"><div class="field"><label for="edit-trip-start">出发日期</label><input id="edit-trip-start" name="startDate" type="date" value="${escapeHTML(trip.startDate)}" required></div><div class="field"><label for="edit-trip-end">返程日期</label><input id="edit-trip-end" name="endDate" type="date" value="${escapeHTML(trip.endDate || "")}"></div></div><div class="modal-actions"><button class="btn ghost" type="button" data-action="close-modal">取消</button><button class="btn primary" type="submit">保存行程</button></div></form></div></div>`;
+    return `<div class="modal-backdrop" data-action="close-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">编辑行程</h2><button class="modal-close" data-action="close-modal" aria-label="关闭">×</button></div><form id="edit-trip-form"><div class="field"><label for="edit-trip-name">行程名称</label><input id="edit-trip-name" name="name" maxlength="40" value="${escapeHTML(trip.name)}" required></div><div class="field"><label for="edit-trip-destination">目的地</label><input id="edit-trip-destination" name="destination" maxlength="60" value="${escapeHTML(trip.destination)}" required></div><div class="field-grid"><div class="field"><label for="edit-trip-start">出发日期</label><input id="edit-trip-start" name="startDate" type="date" value="${escapeHTML(trip.startDate)}" required></div><div class="field"><label for="edit-trip-end">返程日期</label><input id="edit-trip-end" name="endDate" type="date" value="${escapeHTML(trip.endDate || "")}"></div></div><div class="cover-picker"><div class="cover-preview" ${coverStyle(trip)}></div><div class="cover-picker-info"><strong>行程封面</strong><small>${trip.coverImage ? "已上传自选照片" : "已自动匹配场景照片"}</small><div><button type="button" data-action="select-cover">上传新封面</button><button type="button" data-action="reset-cover">恢复自动封面</button></div></div><input id="cover-upload" type="file" accept="image/*" hidden></div><p class="cover-hint">支持 JPG、PNG、WebP；图片压缩后只保存在当前浏览器。</p><div class="modal-actions"><button class="btn ghost" type="button" data-action="close-modal">取消</button><button class="btn primary" type="submit">保存行程</button></div></form></div></div>`;
   }
   if (m.type === "item") {
     const item = m.item || { name: "", category: "其他", quantity: 1 };
@@ -504,7 +569,7 @@ async function ensureWeather(trip = getTrip(), force = false) {
   } catch (error) {
     ui.weather[key] = { status: "error", message: error.name === "AbortError" ? "天气请求超时，请稍后重试。" : error.name === "TypeError" ? "天气请求失败，请检查网络后重试。" : error.message || "天气暂时不可用。" };
   }
-  if ((ui.view === "detail" && ui.tripId === trip.id) || (ui.view === "home" && nextTrip()?.id === trip.id)) render();
+  if ((["detail", "weather"].includes(ui.view) && ui.tripId === trip.id) || (ui.view === "home" && nextTrip()?.id === trip.id)) render();
 }
 
 document.addEventListener("click", (event) => {
@@ -535,6 +600,7 @@ document.addEventListener("click", (event) => {
     return navigate("create");
   }
   if (action === "open-trip") return navigate("detail", { tripId: id });
+  if (action === "open-weather") return navigate("weather", { tripId: id });
   if (action === "choose-method") {
     captureDraft();
     ui.method = el.dataset.method === "blank" ? "blank" : "template";
@@ -554,9 +620,17 @@ document.addEventListener("click", (event) => {
     return navigate("create");
   }
   if (action === "edit-trip") return showModal({ type: "edit-trip" });
-  if (action === "toggle-weather") {
-    ui.weatherExpanded = !ui.weatherExpanded;
-    return render();
+  if (action === "select-cover") return document.getElementById("cover-upload")?.click();
+  if (action === "reset-cover" && trip) {
+    const previous = trip.coverImage, previousPreset = trip.coverPreset;
+    delete trip.coverImage;
+    trip.coverPreset = autoCover(trip.name, trip.destination);
+    if (!save()) {
+      trip.coverImage = previous;
+      trip.coverPreset = previousPreset;
+      return alert("封面未保存，请检查浏览器剩余空间。");
+    }
+    return refreshCoverPreview(trip);
   }
   if (action === "show-confirm") {
     ui.tab = "confirm";
@@ -698,6 +772,25 @@ document.addEventListener("click", (event) => {
   }
 });
 
+document.addEventListener("change", async (event) => {
+  if (event.target.id !== "cover-upload") return;
+  const trip = getTrip();
+  const file = event.target.files?.[0];
+  if (!trip || !file) return;
+  try {
+    const image = await compressCover(file);
+    const previous = trip.coverImage;
+    trip.coverImage = image;
+    if (!save()) {
+      trip.coverImage = previous;
+      return alert("封面未保存，请检查浏览器剩余空间。");
+    }
+    refreshCoverPreview(trip);
+  } catch (error) {
+    alert(error.message || "封面上传失败，请换一张图片。");
+  }
+});
+
 document.addEventListener("submit", async (event) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
@@ -741,6 +834,8 @@ document.addEventListener("submit", async (event) => {
       source: method,
       stage: "confirm",
       items,
+      coverPreset: existing?.coverPreset || autoCover(name, destination),
+      coverImage: existing?.coverImage,
       createdAt: existing?.createdAt || Date.now(),
     };
     if (existing) state.trips.splice(state.trips.indexOf(existing), 1, trip);
@@ -758,6 +853,7 @@ document.addEventListener("submit", async (event) => {
     const startDate = String(data.get("startDate") || ""), endDate = String(data.get("endDate") || "");
     if (!name || !destination || !startDate || (endDate && endDate < startDate)) return alert("请填写有效的行程信息，返程日期不能早于出发日期。");
     Object.assign(trip, { name, destination, startDate, endDate });
+    if (!trip.coverImage) trip.coverPreset = autoCover(name, destination);
     save();
     ui.modal = null;
     render();
