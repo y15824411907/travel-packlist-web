@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#31584b"/>
-  <rect x="15" y="21" width="34" height="28" rx="5" fill="none" stroke="#fff8ed" stroke-width="4"/>
-  <path d="M25 21v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#fff8ed" stroke-width="4"/>
-  <path d="m23 34 6 6 12-13" fill="none" stroke="#e8bf7f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="行前准备标志">
+  <rect width="128" height="128" rx="28" fill="#354A45"/>
+  <g transform="translate(14 14)" fill="none">
+    <path d="M50 17a33 33 0 1 0 32 42" stroke="#F4F5F1" stroke-width="7" stroke-linecap="round"/>
+    <path d="M72 23l11 7-12 7" stroke="#F4F5F1" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M31 51l13 12 26-29" stroke="#CBE2D5" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 </svg>
