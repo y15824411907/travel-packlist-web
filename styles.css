@@ -558,52 +558,6 @@ a {
   color: #9ca59c;
   margin-top: 4px;
 }
-.ai-fields textarea {
-  width: 100%;
-  border: 1px solid #e6e3db;
-  border-radius: 14px;
-  background: #fff;
-  resize: vertical;
-  padding: 13px;
-  min-height: 115px;
-  color: #37473a;
-  outline: none;
-}
-.switch-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  border: 1px solid #e6e3db;
-  border-radius: 13px;
-  margin-top: 10px;
-  padding: 10px 13px;
-  font-size: 13px;
-}
-.switch-line input {
-  accent-color: #52765a;
-  width: 19px;
-  height: 19px;
-}
-.privacy-note {
-  font-size: 11px;
-  color: #99a096;
-  line-height: 1.55;
-}
-.form-error {
-  font-size: 12px;
-  color: #a14b3b;
-  background: #fff1ec;
-  border-radius: 10px;
-  padding: 10px;
-  margin: 12px 0;
-}
-.form-error button {
-  border: 0;
-  background: transparent;
-  color: #7a4535;
-  text-decoration: underline;
-}
 .create-submit {
   margin-top: 24px;
 }
@@ -879,9 +833,6 @@ a {
 .detail-submit {
   margin-top: 19px;
 }
-.regenerate {
-  margin-top: 10px;
-}
 .pack-progress {
   background: #49634f;
   border-radius: 18px;
@@ -1083,6 +1034,421 @@ a {
     gap: 5px;
   }
 }
-.method-options.one {
-  grid-template-columns: 1fr;
+/* V3: selected mountain photography direction */
+:root {
+  color: #15251c;
+  background: #eef1ed;
+}
+body {
+  background: #eef1ed;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #86b690;
+  outline-offset: 2px;
+}
+.app-shell {
+  max-width: 430px;
+  background: #f8f8f2;
+  color: #15251c;
+}
+.app-shell:has(.home) {
+  background: #eff5ee;
+}
+.topbar {
+  height: 69px;
+  padding: 16px 22px 8px;
+}
+.brand {
+  color: #15251c;
+  font-size: 18px;
+  letter-spacing: -0.04em;
+}
+.round-menu {
+  border-color: #dfe9df;
+  background: #fff;
+  color: #285f3d;
+}
+.page {
+  padding: 6px 18px 40px;
+}
+.eyebrow {
+  color: #285f3d;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  font-weight: 800;
+}
+.welcome {
+  margin: 8px 6px 18px;
+}
+.welcome h1 {
+  font-size: 31px;
+  line-height: 1.13;
+  color: #15251c;
+  margin: 7px 0 5px;
+}
+.welcome p,
+.intro {
+  color: #718074;
+  font-size: 12px;
+}
+.hero-card {
+  display: block;
+  min-height: 289px;
+  padding: 0;
+  border-radius: 24px;
+  box-shadow: 0 14px 25px rgba(31, 67, 41, 0.15);
+  position: relative;
+}
+.hero-card.yubeng {
+  background:
+    linear-gradient(180deg, rgba(6, 20, 12, 0.14) 2%, rgba(5, 17, 9, 0.12) 39%, rgba(5, 22, 12, 0.83) 100%),
+    url("./yubeng-reference.jpg") center 41% / cover;
+}
+.hero-card.plain {
+  background: linear-gradient(145deg, #37694a, #183522);
+}
+.hero-top,
+.hero-bottom {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+}
+.hero-top {
+  top: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hero-top span {
+  border-radius: 100px;
+  background: rgba(12, 37, 23, 0.48);
+  backdrop-filter: blur(5px);
+  padding: 8px 10px;
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  color: #e9f4e9;
+}
+.hero-bottom {
+  bottom: 18px;
+}
+.hero-bottom small {
+  color: #dceadd;
+  font-size: 11px;
+}
+.hero-bottom strong {
+  display: block;
+  color: #fff;
+  font-size: 27px;
+  line-height: 1.2;
+  margin: 6px 0 13px;
+}
+.hero-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #eef8ef;
+  font-size: 12px;
+}
+.hero-footer b {
+  font-size: 18px;
+}
+.hero-meter {
+  margin: 0;
+  color: #1c4c2f;
+  background: #d6f2d8;
+  font-size: 11px;
+  padding: 10px 13px;
+  font-weight: 800;
+}
+.empty-hero {
+  min-height: 289px;
+}
+.empty-hero strong {
+  font-size: 26px;
+}
+.home .section-head {
+  margin: 22px 5px 12px;
+}
+.section-head h2 {
+  color: #172a1c;
+  font-size: 17px;
+}
+.text-btn {
+  color: #285f3d;
+  font-weight: 800;
+}
+.home-weather {
+  margin: 0 0 2px;
+  border-radius: 19px;
+  border-color: #e0eae0;
+  background: #fff;
+  color: #243d2a;
+  box-shadow: 0 6px 16px rgba(28, 56, 31, 0.04);
+  padding: 16px 17px;
+}
+.home-weather span {
+  color: #687a6c;
+  font-size: 11px;
+}
+.home-weather strong {
+  color: #193f29;
+}
+.home-weather small {
+  color: #526a58;
+  line-height: 1.5;
+}
+.template-mini button,
+.trip-list-card,
+.card,
+.category {
+  border-color: #e0e9de;
+  box-shadow: 0 6px 16px rgba(28, 56, 31, 0.04);
+}
+.btn.primary {
+  background: #285f3d;
+}
+.btn.secondary {
+  background: #e2eee2;
+  color: #285f3d;
+}
+.bottom-nav {
+  width: min(430px, 100%);
+  background: #fefefd;
+  border-top-color: #e5ebe4;
+}
+.bottom-nav button.active {
+  color: #285f3d;
+}
+.back-row {
+  margin: 4px 4px 19px;
+  color: #283b2d;
+  font-size: 13px;
+  font-weight: 800;
+}
+.back-row button {
+  color: #285f3d;
+  font-size: 23px;
+}
+.back-row button + button {
+  color: #285f3d;
+}
+.back-row button:last-child:not(:first-child) {
+  color: #285f3d;
+  font-size: 12px;
+  font-weight: 800;
+}
+.page-title {
+  color: #15251c;
+  font-size: 29px;
+  line-height: 1.17;
+  margin: 8px 4px 5px;
+}
+.create .page-title {
+  margin: 8px 4px 5px;
+}
+.create .eyebrow,
+.detail .eyebrow {
+  margin-left: 4px;
+}
+.intro,
+.create .intro {
+  margin: 0 4px 18px;
+  line-height: 1.55;
+}
+.form-fields {
+  gap: 1px;
+}
+.field {
+  border-color: #e3e9e0;
+  border-radius: 15px;
+  padding: 11px 13px;
+}
+.field label {
+  color: #718275;
+  font-size: 10px;
+}
+.field input,
+.field select {
+  color: #15251c;
+}
+.form-section-title {
+  margin: 21px 4px 10px;
+  color: #1d3422;
+  font-size: 13px;
+}
+.method-options {
+  gap: 9px;
+}
+.method {
+  min-height: 91px;
+  border-radius: 16px;
+  border-color: #dce6db;
+  padding: 13px;
+  color: #15251c;
+}
+.method.active {
+  background: #e3efe4;
+  border-color: #4a8e5b;
+  box-shadow: inset 0 0 0 1px #4a8e5b;
+}
+.method-icon {
+  display: block;
+  color: #285f3d;
+  font-size: 20px;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+.method strong {
+  font-size: 12px;
+}
+.method small {
+  color: #748276;
+  line-height: 1.3;
+}
+.choice-heading {
+  margin: 22px 4px 9px;
+}
+.choice input:checked + span {
+  color: #fff;
+  background: #285f3d;
+  border-color: #285f3d;
+}
+.choice > span {
+  border-color: #dfe7de;
+  border-radius: 14px;
+}
+.choice-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+.method-note {
+  background: #eff3ec;
+  color: #617265;
+  font-size: 11px;
+  line-height: 1.6;
+  border-radius: 13px;
+  padding: 12px;
+  margin: 17px 0 0;
+}
+.create-submit {
+  margin: 18px 0 6px;
+}
+.steps {
+  margin: 5px 4px 18px;
+}
+.step {
+  color: #879388;
+}
+.step.active {
+  color: #285f3d;
+}
+.step b {
+  width: 26px;
+  height: 21px;
+  border: 0;
+  border-radius: 5px;
+}
+.step.active b {
+  background: #285f3d;
+}
+.weather-card {
+  border: 1px solid #d1e3d2;
+  background: #e2eee2;
+  color: #31563a;
+  padding: 15px;
+  border-radius: 19px;
+}
+.weather-title {
+  color: #44694b;
+  font-size: 11px;
+}
+.weather-title button {
+  color: #285f3d;
+  font-weight: 800;
+}
+.weather-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin: 9px 0;
+}
+.weather-main strong {
+  color: #1b3f28;
+  font-size: 23px;
+  letter-spacing: -0.05em;
+}
+.weather-main small,
+.weather-meta {
+  color: #617c65;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.weather-meta {
+  margin: 9px 0 0;
+}
+.weather-error {
+  color: #556c59;
+  line-height: 1.5;
+}
+.weather-days > div {
+  min-width: 81px;
+}
+.list-heading strong {
+  display: block;
+  color: #15251c;
+  font-size: 18px;
+}
+.list-heading small {
+  color: #8a988c;
+  font-size: 10px;
+}
+.empty-list {
+  border: 1px dashed #cbdccf;
+  background: #f6faf5;
+  border-radius: 18px;
+  padding: 24px 20px;
+  text-align: center;
+  color: #516954;
+  margin: 12px 0;
+}
+.empty-list strong {
+  display: block;
+  color: #21402b;
+  margin: 8px 0 4px;
+}
+.empty-list p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.empty-plus {
+  color: #559168;
+  font-size: 28px;
+}
+.replace-link {
+  margin-top: 12px;
+}
+.category {
+  border-radius: 18px;
+}
+.category-head h3 {
+  color: #1b3522;
+}
+.item-check.on,
+.filters button.active {
+  background: #285f3d;
+  border-color: #285f3d;
+}
+.pack-progress {
+  background: #1b432b;
+}
+.modal {
+  width: min(430px, 100%);
+  background: #f8f8f2;
+}
+@media (min-width: 650px) {
+  .app-shell {
+    border-radius: 28px;
+  }
 }
